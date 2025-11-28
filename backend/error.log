@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "D:\college\2nd Year\Projects\AgentBeforeAmbulance - Antigravity\backend\debug_agents.py", line 21, in test_location
+    agent = LocationAgent()
+            ^^^^^^^^^^^^^^^
+  File "D:\college\2nd Year\Projects\AgentBeforeAmbulance - Antigravity\backend\agents\location_agent.py", line 8, in __init__
+    self.model = genai.GenerativeModel(model_name, tools=self.tools)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\site-packages\google\generativeai\generative_models.py", line 171, in __init__
+    self._tools = content_types.to_tools(tools)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\site-packages\google\generativeai\types\content_types.py", line 252, in to_tools
+    return [glm.Tool(t) for t in tools]
+            ^^^^^^^^^^^
+  File "C:\Python312\Lib\site-packages\proto\message.py", line 706, in __init__
+    raise TypeError(
+TypeError: Invalid constructor input for Tool: <function reverse_geocode at 0x0000019B456C9D00>
+Testing TriageAgent...
+TriageAgent init ok
+
+Testing LocationAgent...
