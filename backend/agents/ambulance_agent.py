@@ -36,4 +36,29 @@ class AmbulanceAgent:
     def process(self, user_input: str, history: list = None):
         chat = self.model.start_chat(history=history or [])
         response = chat.send_message(f"{self.system_instruction}\n\nUser Input: {user_input}")
+        # Check if function call is needed
+        if response.parts[0].function_call:
+            # Extract function call details
+            function_call = response.parts[0].function_call
+            function_name = function_call.name
+            function_args = function_call.args
+            
+            if function_name == "dispatch_ambulance":
+                # Call the tool
+                tool_result = self.tools[0](**function_args)
+                
+                # Send the tool result back to the model
+                response = chat.send_message(
+                    genai.protos.Content(
+                        parts=[
+                            genai.protos.Part(
+                                function_response=genai.protos.FunctionResponse(
+                                    name=function_name,
+                                    response={"result": tool_result}
+                                )
+                            )
+                        ]
+                    )
+                )
+                
         return response.text

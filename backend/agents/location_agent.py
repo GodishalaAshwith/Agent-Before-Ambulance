@@ -20,9 +20,29 @@ class LocationAgent:
         chat = self.model.start_chat(history=history or [])
         response = chat.send_message(f"{self.system_instruction}\n\nUser Input: {user_input}")
         
-        # Check if function call is needed (handled automatically by GenAI lib usually, but we might need to invoke)
-        # For simplicity in this mock, we assume the model uses the tool and returns the result.
-        # In a real ADK loop, this would be handled by the runtime.
-        
-        # For this implementation, we'll return the text response.
+        # Check if function call is needed
+        if response.parts[0].function_call:
+            # Extract function call details
+            function_call = response.parts[0].function_call
+            function_name = function_call.name
+            function_args = function_call.args
+            
+            if function_name == "reverse_geocode":
+                # Call the tool
+                tool_result = self.tools[0](**function_args)
+                
+                # Send the tool result back to the model
+                response = chat.send_message(
+                    genai.protos.Content(
+                        parts=[
+                            genai.protos.Part(
+                                function_response=genai.protos.FunctionResponse(
+                                    name=function_name,
+                                    response={"result": tool_result}
+                                )
+                            )
+                        ]
+                    )
+                )
+                
         return response.text
