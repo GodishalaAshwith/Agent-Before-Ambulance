@@ -22,7 +22,7 @@ class TriageAgent:
         }
         """
 
-    @retry_with_backoff(retries=3, initial_delay=2)
+    @retry_with_backoff(retries=2, initial_delay=0.5)
     def analyze(self, user_input: str) -> dict:
         prompt = f"{self.system_instruction}\n\nUser Input: {user_input}"
         response = self.model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})

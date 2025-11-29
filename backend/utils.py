@@ -3,7 +3,7 @@ import functools
 from google.api_core import exceptions
 import random
 
-def retry_with_backoff(retries=3, initial_delay=1, backoff_factor=2):
+def retry_with_backoff(retries=3, initial_delay=0.5, backoff_factor=2):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):

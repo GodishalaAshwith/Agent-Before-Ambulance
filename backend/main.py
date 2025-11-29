@@ -1,6 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from memory.session import InMemorySessionService
+from agents.supervisor_agent import SupervisorAgent
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
@@ -28,8 +31,13 @@ app.add_middleware(
 )
 
 session_service = InMemorySessionService()
+supervisor = SupervisorAgent()
 
 class MessageRequest(BaseModel):
+    session_id: str
+    message: str
+
+class UserMessage(BaseModel):
     session_id: str
     message: str
 
@@ -42,15 +50,13 @@ async def new_session():
     session_id = session_service.create_session()
     return {"session_id": session_id}
 
-@app.post("/agent", response_model=MessageResponse)
-async def agent_chat(request: MessageRequest):
-    agent = session_service.get_agent(request.session_id)
-    if not agent:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    # process_message is now async
-    response_text = await agent.process_message(request.message, request.session_id)
-    return {"text": response_text}
+@app.post("/agent")
+async def agent_chat(payload: UserMessage):
+    response = await supervisor.process_message(
+        payload.message,
+        payload.session_id
+    )
+    return {"text": response}
 
 if __name__ == "__main__":
     import uvicorn

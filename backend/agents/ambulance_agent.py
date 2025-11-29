@@ -1,6 +1,8 @@
 import google.generativeai as genai
 import uuid
 import random
+import json
+from tools.time_tool import get_current_time
 
 # Mock implementation of the tool for the agent to use directly
 def dispatch_ambulance(location: str, injury: str):
@@ -32,22 +34,25 @@ class AmbulanceAgent:
         Once dispatched, inform the user of the ETA and dispatch ID.
         """
 
-    @retry_with_backoff(retries=3, initial_delay=2)
-    def dispatch(self, injury_type: str, history: list = None) -> dict:
+    @retry_with_backoff(retries=2, initial_delay=0.5)
+    def dispatch(self, injury_type: str, location: str = "Unknown location", history: list = None) -> dict:
         chat = self.model.start_chat(history=history or [])
         
-        json_instruction = """
+        json_instruction = f"""
         Dispatch the ambulance for the given injury.
         You MUST use the `dispatch_ambulance` tool.
+        
+        Injury type: {injury_type}
+        Location: {location}
         
         After dispatching, return a JSON object with:
         - "eta": The estimated time of arrival (integer minutes) returned by the tool.
         - "dispatch_id": The dispatch ID returned by the tool.
         
-        If dispatch fails, return {"eta": null, "dispatch_id": null}.
+        If dispatch fails, return {{"eta": null, "dispatch_id": null}}.
         """
         
-        response = chat.send_message(f"{self.system_instruction}\n{json_instruction}\n\nInjury: {injury_type}")
+        response = chat.send_message(f"{self.system_instruction}\n{json_instruction}")
         
         # Check if function call is needed
         if response.parts[0].function_call:
@@ -78,7 +83,13 @@ class AmbulanceAgent:
             text = response.text.strip()
             if text.startswith("```json"):
                 text = text[7:-3]
-            return json.loads(text)
+            result = json.loads(text)
+            
+            # Add timestamp from MCP tool
+            time_data = get_current_time()
+            result["timestamp"] = time_data["timestamp"]
+            
+            return result
         except Exception:
             # Attempt to extract from text if JSON parsing fails
             return {"eta": None, "dispatch_id": None, "raw_response": response.text}

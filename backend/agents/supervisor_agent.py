@@ -2,7 +2,9 @@ from typing import Dict, Any
 from agents.triage_agent import TriageAgent
 from agents.location_agent import LocationAgent
 from agents.ambulance_agent import AmbulanceAgent
+from agents.ambulance_agent import AmbulanceAgent
 from agents.first_aid_agent import FirstAidAgent
+from memory.session_service import InMemorySessionService
 
 class SupervisorAgent:
     """
@@ -30,17 +32,25 @@ class SupervisorAgent:
 
     async def process_message(self, user_input: str, session_id: str) -> str:
         """
-        Wrapper to handle message processing and state management.
+        Public entry point for FastAPI.
+        Loads the session state, runs handle_message(), and saves updated state.
         """
-        # In a real scenario with external session store, we would load state here using session_id
-        # For now, self.state is the session state
-        
-        result = await self.handle_message(user_input, self.state)
-        
-        # Update state
-        self.state = result["state"]
-        
-        return result["response"]
+        try:
+            print(f"[DEBUG] Processing message for session {session_id}: {user_input}")
+            state = InMemorySessionService.get_state(session_id)
+            print(f"[DEBUG] Loaded state: {state}")
+
+            result = await self.handle_message(user_input, state)
+            print(f"[DEBUG] Result: {result}")
+
+            InMemorySessionService.update_state(session_id, result["state"])
+
+            return result["response"]
+        except Exception as e:
+            print(f"[ERROR] Exception in process_message: {e}")
+            import traceback
+            traceback.print_exc()
+            return f"Error processing message: {str(e)}"
 
     # --------------------------------------------------------
     # MAIN ENTRY POINT
@@ -58,8 +68,13 @@ class SupervisorAgent:
         if not state.get("incident_started", False):
             return await self._start_incident(user_input, state)
 
-        # If injury severity is not known yet → triage
-        if state.get("severity") is None:
+        # Check for severe injury keywords that should trigger re-triage
+        severe_keywords = ["skull", "fracture", "unconscious", "not breathing", "severe bleeding", 
+                          "chest pain", "heart attack", "stroke", "broken bone", "head injury"]
+        should_retriage = any(keyword in user_input.lower() for keyword in severe_keywords)
+        
+        # If injury severity is not known yet OR severe keywords detected → (re)triage
+        if state.get("severity") is None or (should_retriage and state.get("severity", 0) < 3):
             return await self._run_triage(user_input, state)
 
         # If severity high but not dispatched → dispatch ambulance
@@ -116,13 +131,18 @@ class SupervisorAgent:
     # STAGE 3 — DISPATCH AMBULANCE
     # --------------------------------------------------------
     async def _run_ambulance_dispatch(self, state: Dict[str, Any]):
+        print(f"[DEBUG] Dispatching ambulance for {state['injury_type']}")
+        location = state.get("location", {}).get("address", "Unknown location")
         dispatch_result = self.ambulance_agent.dispatch(
-            injury_type=state["injury_type"]
+            injury_type=state["injury_type"],
+            location=location
         )
+        print(f"[DEBUG] Dispatch result: {dispatch_result}")
 
         state["ambulance_dispatched"] = True
         state["dispatch_eta"] = dispatch_result.get("eta")
         state["dispatch_id"] = dispatch_result.get("dispatch_id")
+        state["dispatch_timestamp"] = dispatch_result.get("timestamp")
 
         return {
             "response": f"Ambulance dispatched (ID: {state['dispatch_id']}). Estimated arrival time is {state['dispatch_eta']} minutes. Now let's focus on first aid.",
@@ -138,21 +158,26 @@ class SupervisorAgent:
         if loc and loc.get("address"):
             state["location"] = loc
             
-            # If we just got the location and severity is high, we might want to auto-dispatch next turn or now.
-            # For this flow, we'll return response and let next turn handle dispatch if needed, 
-            # OR we can recursively call dispatch here. 
-            # Let's return response to keep it simple and interactive.
-            
             response_text = f"I have your location: {loc['address']}."
+            
+            # If severity is high and ambulance not dispatched, dispatch NOW
             if state.get("severity", 0) >= 3 and not state.get("ambulance_dispatched"):
-                 response_text += " I am dispatching an ambulance now."
-                 # We could trigger dispatch here, but let's let the loop handle it next time or force a re-eval?
-                 # To make it smooth, let's just acknowledge. The user will likely say "ok" or "help", triggering dispatch next.
-                 # OR we can chain it.
-                 # Let's chain it if we want immediate dispatch.
-                 # But for now, let's stick to the requested flow.
+                # Actually dispatch the ambulance
+                print(f"[DEBUG] Auto-dispatching ambulance after location provided")
+                dispatch_result = self.ambulance_agent.dispatch(
+                    injury_type=state["injury_type"],
+                    location=loc.get("address", "Unknown location")
+                )
+                print(f"[DEBUG] Dispatch result: {dispatch_result}")
+                
+                state["ambulance_dispatched"] = True
+                state["dispatch_eta"] = dispatch_result.get("eta")
+                state["dispatch_id"] = dispatch_result.get("dispatch_id")
+                state["dispatch_timestamp"] = dispatch_result.get("timestamp")
+                
+                response_text += f" Ambulance dispatched (ID: {state['dispatch_id']}). Estimated arrival time is {state['dispatch_eta']} minutes. Now let's focus on first aid."
             else:
-                 response_text += " Now let's focus on first aid."
+                response_text += " Now let's focus on first aid."
 
             return {
                 "response": response_text,
