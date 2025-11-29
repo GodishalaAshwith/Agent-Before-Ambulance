@@ -33,9 +33,22 @@ class AmbulanceAgent:
         """
 
     @retry_with_backoff(retries=3, initial_delay=2)
-    def process(self, user_input: str, history: list = None):
+    def dispatch(self, injury_type: str, history: list = None) -> dict:
         chat = self.model.start_chat(history=history or [])
-        response = chat.send_message(f"{self.system_instruction}\n\nUser Input: {user_input}")
+        
+        json_instruction = """
+        Dispatch the ambulance for the given injury.
+        You MUST use the `dispatch_ambulance` tool.
+        
+        After dispatching, return a JSON object with:
+        - "eta": The estimated time of arrival (integer minutes) returned by the tool.
+        - "dispatch_id": The dispatch ID returned by the tool.
+        
+        If dispatch fails, return {"eta": null, "dispatch_id": null}.
+        """
+        
+        response = chat.send_message(f"{self.system_instruction}\n{json_instruction}\n\nInjury: {injury_type}")
+        
         # Check if function call is needed
         if response.parts[0].function_call:
             # Extract function call details
@@ -60,5 +73,12 @@ class AmbulanceAgent:
                         ]
                     )
                 )
-                
-        return response.text
+        
+        try:
+            text = response.text.strip()
+            if text.startswith("```json"):
+                text = text[7:-3]
+            return json.loads(text)
+        except Exception:
+            # Attempt to extract from text if JSON parsing fails
+            return {"eta": None, "dispatch_id": None, "raw_response": response.text}

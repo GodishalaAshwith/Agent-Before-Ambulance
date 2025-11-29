@@ -16,9 +16,23 @@ class LocationAgent:
         """
 
     @retry_with_backoff(retries=3, initial_delay=2)
-    def process(self, user_input: str, history: list = None):
+    def extract_location(self, user_input: str, history: list = None) -> dict:
         chat = self.model.start_chat(history=history or [])
-        response = chat.send_message(f"{self.system_instruction}\n\nUser Input: {user_input}")
+        
+        # Update system instruction to request JSON
+        json_instruction = """
+        Extract the location from the user's input.
+        If a location is found, use the `reverse_geocode` tool to get details if needed, or just extract it.
+        
+        Return a JSON object with the following keys:
+        - "address": The full address or location description.
+        - "lat": Latitude (if available, else null).
+        - "lon": Longitude (if available, else null).
+        
+        If no location is found, return null.
+        """
+        
+        response = chat.send_message(f"{self.system_instruction}\n{json_instruction}\n\nUser Input: {user_input}")
         
         # Check if function call is needed
         if response.parts[0].function_call:
@@ -44,5 +58,13 @@ class LocationAgent:
                         ]
                     )
                 )
-                
-        return response.text
+
+        try:
+            # Clean up response text to ensure it's valid JSON
+            text = response.text.strip()
+            if text.startswith("```json"):
+                text = text[7:-3]
+            return json.loads(text)
+        except Exception:
+            # Fallback if JSON parsing fails or if it's just a string
+            return {"address": response.text, "lat": None, "lon": None}

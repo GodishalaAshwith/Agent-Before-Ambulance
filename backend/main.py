@@ -48,7 +48,8 @@ async def agent_chat(request: MessageRequest):
     if not agent:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    response_text = agent.process_message(request.message, request.session_id)
+    # process_message is now async
+    response_text = await agent.process_message(request.message, request.session_id)
     return {"text": response_text}
 
 if __name__ == "__main__":
