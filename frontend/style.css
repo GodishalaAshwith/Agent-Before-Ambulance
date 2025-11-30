@@ -6,19 +6,29 @@
     --text-color: #f8fafc; /* Slate-50 */
     --text-muted: #94a3b8; /* Slate-400 */
     --accent-color: #3b82f6; /* Blue-500 */
+    --success-color: #10b981; /* Green-500 */
+    --warning-color: #f59e0b; /* Amber-500 */
+    --error-color: #ef4444; /* Red-500 */
+}
+
+* {
+    box-sizing: border-box;
 }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background-color: var(--bg-color);
     color: var(--text-color);
     margin: 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .container {
@@ -28,6 +38,7 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
 }
 
 header {
@@ -37,12 +48,13 @@ header {
 }
 
 h1 {
-    font-size: 2rem;
+    font-size: clamp(1.5rem, 5vw, 2rem);
     font-weight: 700;
     margin: 0;
     background: linear-gradient(to right, #ef4444, #f87171);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .subtitle {
@@ -51,9 +63,39 @@ h1 {
     margin-top: 5px;
 }
 
+/* Connection Status */
+.connection-status {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.connection-status.online {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+}
+
+.connection-status.offline {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--error-color);
+    animation: blink 2s infinite;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
 #chat-container {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 20px;
     background-color: var(--card-bg);
     border-radius: 20px;
@@ -72,6 +114,8 @@ h1 {
     line-height: 1.5;
     font-size: 0.95rem;
     animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .user-message {
@@ -109,63 +153,309 @@ h1 {
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
 }
 
-#mic-button:hover {
+#mic-button:hover:not(:disabled) {
     transform: scale(1.05);
     background-color: var(--primary-hover);
     box-shadow: 0 0 30px rgba(239, 68, 68, 0.6);
 }
 
-#mic-button:active {
+#mic-button:active:not(:disabled) {
     transform: scale(0.95);
+}
+
+#mic-button:focus-visible {
+    outline: 3px solid var(--accent-color);
+    outline-offset: 4px;
+}
+
+#mic-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 #mic-button.listening {
     animation: pulse 1.5s infinite;
+    background-color: var(--success-color);
 }
 
 #mic-icon {
     width: 32px;
     height: 32px;
     fill: white;
+    pointer-events: none;
 }
 
+/* Status Text */
 .status-text {
     text-align: center;
-    color: var(--text-muted);
     font-size: 0.8rem;
     margin-top: 10px;
     height: 20px;
+    transition: color 0.3s ease;
 }
 
+.status-ready {
+    color: var(--text-muted);
+}
+
+.status-listening {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.status-processing {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+.status-error {
+    color: var(--error-color);
+    font-weight: 600;
+}
+
+.status-warning {
+    color: var(--warning-color);
+    font-weight: 600;
+}
+
+.status-success {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.status-info {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+/* Notifications */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    max-width: 350px;
+    padding: 16px 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    font-size: 0.9rem;
+    font-weight: 500;
+    z-index: 1000;
+    opacity: 0;
+    transform: translateX(400px);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.notification-info {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.notification-success {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.notification-warning {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+.notification-error {
+    background-color: var(--error-color);
+    color: white;
+}
+
+/* Animations */
 @keyframes fadeInDown {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { 
+        opacity: 0; 
+        transform: translateY(-20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
 }
 
 @keyframes popIn {
-    from { opacity: 0; transform: scale(0.8); }
-    to { opacity: 1; transform: scale(1); }
+    from { 
+        opacity: 0; 
+        transform: scale(0.8); 
+    }
+    to { 
+        opacity: 1; 
+        transform: scale(1); 
+    }
 }
 
 @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-    70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    0% { 
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); 
+    }
+    70% { 
+        box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); 
+    }
+    100% { 
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); 
+    }
+}
+
+@keyframes blink {
+    0%, 50%, 100% { 
+        opacity: 1; 
+    }
+    25%, 75% { 
+        opacity: 0.5; 
+    }
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
 }
+
 ::-webkit-scrollbar-track {
     background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
     background: #475569;
     border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
     background: #64748b;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 640px) {
+    .container {
+        padding: 16px;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    .subtitle {
+        font-size: 0.8rem;
+    }
+
+    #chat-container {
+        padding: 16px;
+        border-radius: 16px;
+        gap: 12px;
+    }
+
+    .message {
+        max-width: 85%;
+        font-size: 0.9rem;
+        padding: 10px 14px;
+    }
+
+    #mic-button {
+        width: 70px;
+        height: 70px;
+    }
+
+    #mic-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+        font-size: 0.85rem;
+    }
+
+    .connection-status {
+        font-size: 0.7rem;
+        padding: 3px 10px;
+    }
+}
+
+/* Landscape Mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+    .container {
+        padding: 10px;
+    }
+
+    header {
+        margin-bottom: 10px;
+    }
+
+    h1 {
+        font-size: 1.25rem;
+    }
+
+    .subtitle, .connection-status {
+        display: none;
+    }
+
+    #chat-container {
+        margin-bottom: 10px;
+        padding: 12px;
+    }
+
+    #mic-button {
+        width: 60px;
+        height: 60px;
+    }
+
+    .controls {
+        padding-bottom: 10px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    body {
+        background-color: white;
+        color: black;
+    }
+
+    .controls, .status-text, .connection-status {
+        display: none;
+    }
+
+    #chat-container {
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    :root {
+        --primary-color: #ff0000;
+        --accent-color: #0000ff;
+        --text-color: #ffffff;
+        --bg-color: #000000;
+    }
+
+    #mic-button {
+        border: 2px solid white;
+    }
 }

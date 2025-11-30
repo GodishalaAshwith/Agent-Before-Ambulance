@@ -1,0 +1,34 @@
+# Production files
+*.log
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.production.local
+.env.development.local
+config.js
+config.*.js
+!config.example.js
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+.cache/
+
+# Build outputs (if using build tools)
+dist/
+build/
+
+# Dependencies (if using npm)
+node_modules/
+
+# Screenshots and test files
+screenshots/
+test-*.html
